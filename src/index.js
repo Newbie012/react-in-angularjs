@@ -16,6 +16,7 @@ function angularize(Component, componentName, angularApp, bindings) {
         if (window.angular) {
           // Add $scope
           this.$scope = window.angular.element($element).scope();
+          this.root = undefined;
 
           // Create a map of objects bound by '='
           // For those that exists, use $doCheck to check them using angular.equals and trigger $onChanges
@@ -46,7 +47,14 @@ function angularize(Component, componentName, angularApp, bindings) {
         }
 
         this.$onChanges = () => {
-          ReactDOM.createRoot($element[0]).render(React.createElement(Component, this));
+          this.root = ReactDOM.createRoot($element[0]);
+          this.root.render(React.createElement(Component, this));
+        };
+        
+        this.$onDestroy = () => {
+            if (this.root) {
+                this.root.unmount();
+            }
         };
       },
     ],
@@ -63,11 +71,12 @@ function angularizeDirective(Component, directiveName, angularApp, bindings) {
       scope: bindings,
       replace: true,
       link: function (scope, element) {
+        let root = ReactDOM.createRoot(element[0]);
         // Add $scope
         scope.$scope = scope;
 
         // First render - needed?
-        ReactDOM.createRoot(element[0]).render(React.createElement(Component, scope));
+        root.render(React.createElement(Component, scope));
 
         // Watch for any changes in bindings, then rerender
         const keys = [];
@@ -83,7 +92,13 @@ function angularizeDirective(Component, directiveName, angularApp, bindings) {
         }
 
         scope.$watchGroup(keys, () => {
-          ReactDOM.createRoot(element[0]).render(React.createElement(Component, scope));
+          root.render(React.createElement(Component, scope));
+        });
+        
+        scope.$on('$destroy', function() {
+          if (root) {
+            root.unmount();
+          }
         });
       },
     };
